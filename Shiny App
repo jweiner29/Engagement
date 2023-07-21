@@ -1,0 +1,82 @@
+#
+# This is a Shiny web application. You can run the application by clicking
+# the 'Run App' button above.
+#
+# Find out more about building applications with Shiny here:
+#
+#    http://shiny.rstudio.com/
+#
+
+
+# Define UI for application that draws a histogram
+ui <- fluidPage(
+
+    # Application title
+    headerPanel("Chance of Engagement"),
+
+    # Sidebar with a slider input for number of bins 
+      sidebarPanel(
+          sliderInput('Days', 'How many days were between enrollment and the first event?', min=0, max=300, value=1),
+          selectInput('Attendance.Method', 'What was the attendance method of the first event?', list("Live Stream",
+                                                          "In Person")),
+          selectInput('New.on.App', 'Did they join via the app?', list("Yes", "No")),
+          selectInput('Channel', 'Was their first event led by staff or volunteer?', list("Staff", 
+                                                                                          "Volunteer")),
+          selectInput('Category', 'What type of event was their first event?', list("Rock Climbing", 
+                                                                                    "Social Event",
+                                                                                    "Sport and Fitness",
+                                                                                    "Yoga/Meditation")),
+          actionButton('go', "Predict")
+        ),
+
+        # Show a plot of the generated distribution
+        mainPanel(
+          sidebarPanel(width = 25,
+                       headerPanel("Chance of Engagement is:"),
+                       textOutput("value"))
+        )
+      )
+# Define server logic required to draw a histogram
+server <- function(input, output) {
+  
+  data2 <- reactiveValues()
+  observeEvent(input$go,{
+ 
+  data <- read.csv("Engagement.csv") 
+  head(data)
+  
+  data$Attendance.Method = as.factor(data$Attendance.Method)
+  data$New.on.App = as.factor(data$New.on.App)
+  data$Category = as.factor(data$Category)
+  data$Channel = as.factor(data$Channel)
+  data$Days = as.numeric(data$Days)
+  str(data$Attendance.Method)
+  str(data$New.on.App)
+  str(data$Category)
+  str(data$Channel)
+
+    
+  data2$myattendance_method <- as.factor(input$Attendance.Method)
+  data2$mynew_on_app <- as.factor(input$New.on.App)
+  data2$mycategory <- as.factor(input$Category)
+  data2$mydays <- as.numeric(input$Days)
+  data2$mychannel <- as.factor(input$Channel)
+  
+  newPredict = data.frame(Attendance.Method = (data2$myattendance_method), 
+                          New.on.App = (data2$mynew_on_app),
+                          Category = (data2$mycategory),
+                          Days = data2$mydays,
+                          Channel = data2$mychannel)
+  
+  model <- glm(Engagement ~., family = binomial(link="logit"), data = data)
+  
+  data2$op = round(predict(model, newPredict,  type="response")*100,2)
+  })
+  output$value <- renderText({
+    x <- data2$op
+    print(paste(x,"%",sep=))
+  })
+}
+# Run the application 
+shinyApp(ui = ui, server = server)
+
