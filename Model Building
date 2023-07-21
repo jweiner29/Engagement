@@ -1,0 +1,59 @@
+install.packages("tidyverse")
+install.packages("ROCR")
+install.packages("popbio")
+install.packages("tidymodels")
+install.packages("caret")
+library(tidyverse)
+library(ROCR)
+library(popbio)
+library(tidymodels)
+library(caret)
+
+
+data <- read.csv("Engagement.csv")
+head(data)
+
+
+data$Attendance.Method = as.factor(data$Attendance.Method)
+data$New.on.App = as.factor(data$New.on.App)
+data$Category = as.factor(data$Category)
+data$Channel = as.factor(data$Channel)
+str(data$Attendance.Method)
+str(data$New.on.App)
+str(data$Category)
+str(data$Channel)
+
+
+model <- glm(Engagement ~., family = binomial(link="logit"), data = data)
+summary(model)
+
+#Split data into train and test sets
+splitdata = caret::createDataPartition(data[,1], p=0.8, list=F, times=1)
+train = data[splitdata,]
+test = data[!row.names(data) %in% row.names(train),]
+dim(train)
+dim(test)
+
+#Fit model to training data
+trainLR = glm(Engagement~., data = train, family = binomial(link="logit"))
+summary(trainLR)
+
+
+#Predict on test data
+test$Predict = predict(trainLR, test[,2:7], type="response")
+head(test)
+
+#Confusion Matrix
+table(test$Engagement, test$Predict >=0.5)
+(93+200)/nrow(test)
+#Accuracy = .805
+
+#Model Evaluation 
+pred = predict(trainLR, test[,2:7], type="response")
+pObject = ROCR::prediction(pred, test$Engagement)
+
+rocObj = ROCR::performance(pObject, measure = "tpr", x.measure = "fpr")
+aucObj = ROCR::performance(pObject, measure = "auc")
+plot(rocObj, main = paste("Area under the curve", round(aucObj@y.values[[1]],5)))
+
+     
